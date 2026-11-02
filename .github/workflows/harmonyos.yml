@@ -1,32 +1,28 @@
-name: Diag
+name: Probe
 on:
   push:
     branches: [main]
   workflow_dispatch:
 jobs:
-  diag:
+  probe:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v5.0.4
     steps:
+      - uses: actions/checkout@v4
       - name: Probe
         run: |
           set +e
           {
-          echo '### tools dir'; ls -la /opt/harmonyos-tools/command-line-tools/
-          echo '### bin'; ls -la /opt/harmonyos-tools/command-line-tools/bin/
-          echo '### sdk'; ls -la /opt/harmonyos-tools/command-line-tools/sdk/
-          echo '### sdk versions'; ls -la /opt/harmonyos-tools/command-line-tools/sdk/default/ 2>/dev/null
-          echo '### node-ish'; command -v node nodejs npm; ls -la /usr/bin/node* /usr/local/bin/node* 2>/dev/null
-          echo '### find node any'; find / -xdev -name 'node*' -type f 2>/dev/null | grep -v proc | head -20
-          echo '### hvigorw head'; head -20 /opt/harmonyos-tools/command-line-tools/bin/hvigorw
-          echo '### hvigorw run'; hvigorw --version 2>&1 | head -30
-          echo '### sdk api levels'; ls /opt/harmonyos-tools/command-line-tools/sdk/default/openharmony/ 2>/dev/null; cat /opt/harmonyos-tools/command-line-tools/sdk/default/openharmony/ets/oh-uni-package.json 2>/dev/null
-          } > /tmp/probe.log 2>&1
-          cp /tmp/probe.log $GITHUB_WORKSPACE/probe.log 2>/dev/null || cp /tmp/probe.log ./probe.log
-      - name: Upload
+          echo '### hvigor version'; cat /opt/harmonyos-tools/command-line-tools/hvigor/package.json | head -8
+          echo '### ohpm version'; cat /opt/harmonyos-tools/command-line-tools/ohpm/package.json 2>/dev/null | head -8
+          echo '### sdk-pkg'; cat /opt/harmonyos-tools/command-line-tools/sdk/default/sdk-pkg.json
+          echo '### hms ets'; cat /opt/harmonyos-tools/command-line-tools/sdk/default/hms/ets/oh-uni-package.json 2>/dev/null
+          echo '### repo hvigor-config'; cat hvigor/hvigor-config.json5
+          echo '### hvigorw --version'; hvigorw --version 2>&1 | head -30
+          } > probe.log 2>&1
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: probe
           path: probe.log
