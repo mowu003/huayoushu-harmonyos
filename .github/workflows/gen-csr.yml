@@ -1,5 +1,7 @@
 name: Gen Signing CSR
 on:
+  push:
+    paths: ['.github/workflows/gen-csr.yml']
   workflow_dispatch:
 jobs:
   gen:
@@ -9,10 +11,9 @@ jobs:
         with: { distribution: temurin, java-version: '21' }
       - name: Generate keystore + CSR
         run: |
-          keytool -genkeypair -alias hys -keyalg RSA -keysize 2048 -validity 9125             -keystore hys.p12 -storetype PKCS12 -storepass hys123456 -keypass hys123456             -dname CN=mowu, OU=dev, O=mowu, L=Xinzhou, ST=Shanxi, C=CN
+          keytool -genkeypair -alias hys -keyalg RSA -keysize 2048 -validity 9125             -keystore hys.p12 -storetype PKCS12 -storepass hys123456 -keypass hys123456             -dname "CN=mowu, OU=dev, O=mowu, L=Xinzhou, ST=Shanxi, C=CN"
           keytool -certreq -alias hys -keystore hys.p12 -storepass hys123456 -file hys.csr
-          echo '--- CSR ---'; cat hys.csr
-          echo '--- p12 sha256 ---'; sha256sum hys.p12
+          cat hys.csr
       - uses: actions/upload-artifact@v4
         with:
           name: signing
