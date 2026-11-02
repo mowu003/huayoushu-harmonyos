@@ -1,25 +1,61 @@
-name: Probe
+name: Build HarmonyOS HAP (API 26)
+
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
+
+env:
+  CLT_URL: https://github.com/jerry-271828/harmonyos-commandline-tools/releases/download/v26.0.0.461
+
 jobs:
-  probe:
+  build:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.0.418SP-rc1
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Probe
-        run: |
-          {
-          echo '### bin'; ls -la /opt/harmonyos-tools/command-line-tools/bin/
-          echo '### sdkmgr'; find / -xdev -name 'sdkmgr*' -o -xdev -name 'sdkmanager*' 2>/dev/null | head
-          echo '### sdkmgr version'; /opt/harmonyos-tools/command-line-tools/bin/sdkmgr --version 2>&1 | head -10
-          echo '### sdkmgr list'; timeout 90 /opt/harmonyos-tools/command-line-tools/bin/sdkmgr list 2>&1 | head -60
-          } > probe.log 2>&1
-      - uses: actions/upload-artifact@v4
-        if: always()
+
+      - uses: actions/setup-java@v4
         with:
-          name: probe
-          path: probe.log
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache HarmonyOS CLI tools
+        id: clt-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/clt
+          key: clt-26.0.0.461
+
+      - name: Download Command Line Tools (API 26)
+        if: steps.clt-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          sudo mkdir -p /opt/clt
+          curl -fL --retry 3 -o clt.zip.part00 "$CLT_URL/clt.zip.part00"
+          curl -fL --retry 3 -o clt.zip.part01 "$CLT_URL/clt.zip.part01"
+          cat clt.zip.part00 clt.zip.part01 > clt.zip
+          sha256sum clt.zip
+          sudo unzip -q clt.zip -d /opt/clt
+          ls /opt/clt
+
+      - name: Build HAP
+        run: |
+          set -x
+          CLT=$(dirname "$(find /opt/clt -maxdepth 3 -type d -name command-line-tools | head -1)")
+          export COMMANDLINE_TOOL_DIR="$CLT"
+          export PATH="$CLT/command-line-tools/bin:$CLT/command-line-tools/tool/node/bin:$PATH"
+          hvigorw -v || true
+          ohpm install --all 2>&1 | tail -20
+          hvigorw clean --no-daemon
+          hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          ls -la entry/build/default/outputs/default/
+
+      - name: Upload HAP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hap-debug
+          path: entry/build/default/outputs/default/**/*.hap
+          if-no-files-found: warn
+          retention-days: 14
