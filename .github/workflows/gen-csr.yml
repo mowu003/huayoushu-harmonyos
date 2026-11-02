@@ -1,4 +1,4 @@
-name: Gen Signing CSR
+name: Gen Signing CSR (EC)
 on:
   push:
     paths: ['.github/workflows/gen-csr.yml']
@@ -9,14 +9,16 @@ jobs:
     steps:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21' }
-      - name: Generate keystore + CSR
+      - name: Generate EC keystore + CSR
         run: |
-          keytool -genkeypair -alias hys -keyalg RSA -keysize 2048 -validity 9125             -keystore hys.p12 -storetype PKCS12 -storepass hys123456 -keypass hys123456             -dname "CN=mowu, OU=dev, O=mowu, L=Xinzhou, ST=Shanxi, C=CN"
-          keytool -certreq -alias hys -keystore hys.p12 -storepass hys123456 -file hys.csr
-          cat hys.csr
+          keytool -genkeypair -alias hys -keyalg EC -groupname secp256r1 -keysize 256             -validity 9125 -keystore hys-ec.p12 -storetype PKCS12             -storepass hys123456 -keypass hys123456             -dname "C=CN, ST=Shanxi, L=Xinzhou, O=mowu, OU=dev, CN=mowu"
+          keytool -certreq -sigalg SHA256withECDSA -alias hys -keystore hys-ec.p12             -storepass hys123456 -file hys-ec.csr
+          echo '--- key info ---'
+          keytool -list -v -keystore hys-ec.p12 -storepass hys123456 | grep -E 'Alias|Algorithm|Subject'
+          echo '--- csr ---'; cat hys-ec.csr
       - uses: actions/upload-artifact@v4
         with:
-          name: signing
+          name: signing-ec
           path: |
-            hys.p12
-            hys.csr
+            hys-ec.csr
+            hys-ec.p12
