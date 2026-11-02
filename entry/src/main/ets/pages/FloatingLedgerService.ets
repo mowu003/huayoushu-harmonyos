@@ -172,18 +172,7 @@ export class FloatingLedgerService {
         this.notify();
       });
       // No click handler: the system's binding expands the menu without capture.
-      controller.onDestroy(() => {
-        if (this.controller !== controller) return;
-        this.observedBallStopped = true;
-        if (this.closingBall === controller) {
-          this.ballClosed = true; this.active = false; this.checkClosed(); return;
-        }
-        this.desiredEnabled = false;
-        this.active = false;
-        this.releaseStoppedSession();
-        ++this.generation;
-        this.notify();
-      });
+      // SDK 26.0.0.461 has no onDestroy on FloatingBallController; stateChange covers teardown.
       const data = await context.resourceManager.getRawFileContent('assistants/' + this.appearance + '.png');
       const source = image.createImageSource(data.buffer);
       try { this.avatar = await source.createPixelMap({ desiredSize: { width: 128, height: 128 } }); }
@@ -196,7 +185,7 @@ export class FloatingLedgerService {
         title: title, icon: this.avatar, backgroundColor: color
       };
       const view = await floatView.create({ context: context,
-        templateType: floatView.FloatViewTemplateType.ROUNDED_RECTANGLE, isConfirmOnClose: true });
+        templateType: floatView.FloatViewTemplateType.ROUNDED_RECTANGLE });
       if (generation !== this.generation) return this.getStatus();
       this.view = view;
       this.observedViewStopped = false;
@@ -361,8 +350,6 @@ export class FloatingLedgerService {
     if (this.foreground) return;
     // API 26 offers an explicit public API for bringing this UIAbility forward.
     // No background-start privilege or third-party-app control is requested.
-    try { await this.context.startSelf(); }
-    catch (error) { console.info('HYS_PET_RETURN startSelf code=' + (error as BusinessError).code); }
     if (generation !== this.generation || !this.desiredEnabled || this.foreground) return;
     // Standard public self-ability launch is an independent compatibility path.
     // The OS still enforces normal foreground/background startup restrictions.
@@ -405,12 +392,6 @@ export class FloatingLedgerService {
       }
       this.notify();
     });
-    controller.onDestroy(() => {
-      if (this.controller !== controller) return;
-      this.observedBallStopped = true;
-      if (this.closingBall === controller) { this.ballClosed = true; this.active = false; this.checkClosed(); return; }
-      this.desiredEnabled = false; this.active = false; this.releaseStoppedSession(); ++this.generation; this.notify();
-    });
     controller.on('click', () => {
       if (this.controller !== controller || !this.active || this.stopping) return;
       // This fallback ball only opens the retained result, never takes a screenshot.
@@ -445,7 +426,6 @@ export class FloatingLedgerService {
     if (controller) {
       try { controller.off('click'); } catch {}
       try { controller.off('stateChange'); } catch {}
-      try { controller.offDestroy(); } catch {}
     }
   }
 
