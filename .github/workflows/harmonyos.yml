@@ -23,14 +23,11 @@ jobs:
       - name: Grep
         run: |
           {
-          SDK=$(find /opt/clt -maxdepth 6 -type d -name ets -path '*openharmony*' | head -1); echo SDK=$SDK
-          echo '===== FloatingBallController ====='
-          grep -rl 'FloatingBallController' $SDK/api 2>/dev/null | head
-          sed -n '/declare class FloatingBallController/,/^}/p' $SDK/api/@ohos.arkui.FloatingBall.d.ts 2>/dev/null | head -120
-          echo '===== FloatViewConfiguration ====='
-          sed -n '/interface FloatViewConfiguration/,/^  }/p' $SDK/api/@ohos.arkui.FloatView.d.ts 2>/dev/null | head -60
-          echo '===== startSelf ====='
-          grep -rn 'startSelf' $SDK/api 2>/dev/null | head -5
+          A=/opt/clt/command-line-tools/sdk/default/openharmony/ets/api
+          echo '===== floatingBall methods ====='
+          grep -nE '^\s+(on|off|[a-zA-Z]+)\(|declare (class|interface)|^\s+[a-zA-Z]+\??:' $A/@ohos.window.floatingBall.d.ts | head -80
+          echo '===== floatView config ====='
+          grep -nE 'FloatViewConfiguration|isConfirm|templateType|interface |^\s+[a-zA-Z]+\??:' $A/@ohos.window.floatView.d.ts | head -80
           } > probe.log 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
