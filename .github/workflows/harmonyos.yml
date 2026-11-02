@@ -1,28 +1,45 @@
-name: Probe
+name: Build HarmonyOS HAP
+
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
+
 jobs:
-  probe:
+  build:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v5.0.4
     steps:
       - uses: actions/checkout@v4
-      - name: Probe
+
+      - name: Install dependencies (ohpm)
+        run: ohpm install --all 2>&1 | tee ohpm.log || true
+
+      - name: Build HAP (debug)
         run: |
-          set +e
-          {
-          echo '### hvigor version'; cat /opt/harmonyos-tools/command-line-tools/hvigor/package.json | head -8
-          echo '### ohpm version'; cat /opt/harmonyos-tools/command-line-tools/ohpm/package.json 2>/dev/null | head -8
-          echo '### sdk-pkg'; cat /opt/harmonyos-tools/command-line-tools/sdk/default/sdk-pkg.json
-          echo '### hms ets'; cat /opt/harmonyos-tools/command-line-tools/sdk/default/hms/ets/oh-uni-package.json 2>/dev/null
-          echo '### repo hvigor-config'; cat hvigor/hvigor-config.json5
-          echo '### hvigorw --version'; hvigorw --version 2>&1 | head -30
-          } > probe.log 2>&1
-      - uses: actions/upload-artifact@v4
+          { hvigorw clean --no-daemon
+            hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          } > build.log 2>&1 || true
+          echo "===== build.log (tail 150) ====="; tail -150 build.log
+
+      - name: Upload logs
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: probe
-          path: probe.log
+          name: build-logs
+          path: |
+            build.log
+            ohpm.log
+          retention-days: 3
+
+      - name: Fail if no HAP
+        run: |
+          ls -la entry/build/default/outputs/default/ || { echo "NO HAP PRODUCED"; tail -80 build.log; exit 1; }
+
+      - name: Upload HAP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hap-debug
+          path: entry/build/default/outputs/default/*.hap
+          retention-days: 7
