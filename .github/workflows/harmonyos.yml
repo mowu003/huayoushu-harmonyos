@@ -1,55 +1,31 @@
-name: Build HarmonyOS HAP
-
+name: Diag
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
-
 jobs:
-  build:
+  diag:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v5.0.4
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies (ohpm)
-        run: ohpm install --all 2>&1 | tee ohpm.log || true
-
-      - name: Diag
+      - name: Probe
         run: |
-          { node -v; java -version 2>&1; command -v hvigorw ohpm node java;
-            echo "--- hvigorw version ---"; hvigorw --version 2>&1 | head -20;
-            echo "--- SDK env ---"; env | grep -i -E "ohos|harmony|deveco|sdk";
-            echo "--- SDK dirs ---"; ls -d $HOME/.ohos/* /opt/*harmony* /usr/local/*harmony* 2>/dev/null;
-          } > diag.log 2>&1; cat diag.log
-
-      - name: Build HAP (debug)
-        run: |
-          { hvigorw clean --no-daemon
-            hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
-          } > build.log 2>&1 || true
-          echo "===== build.log (tail 200) ====="; tail -200 build.log
-
-      - name: Upload logs
+          set +e
+          exec > probe.log 2>&1
+          echo '### PATH'; echo $PATH
+          echo '### /opt'; ls -la /opt
+          echo '### /usr/local'; ls -la /usr/local
+          echo '### find node'; find / -maxdepth 6 -name 'node' -type f 2>/dev/null | head
+          echo '### find hvigorw'; find / -maxdepth 8 -name 'hvigorw*' 2>/dev/null | head
+          echo '### find ohpm'; find / -maxdepth 8 -name 'ohpm*' -type f 2>/dev/null | head
+          echo '### java'; java -version 2>&1
+          echo '### SDK'; ls /opt 2>/dev/null; find / -maxdepth 4 -iname '*sdk*' -type d 2>/dev/null | head -20
+          echo '### root dirs'; ls -la /
+          cat probe.log
+      - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: |
-            build.log
-            diag.log
-            ohpm.log
-          retention-days: 3
-
-      - name: Fail if no HAP
-        run: |
-          ls -la entry/build/default/outputs/default/ || { echo "NO HAP PRODUCED"; tail -60 build.log; exit 1; }
-
-      - name: Upload HAP artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: hap-debug
-          path: entry/build/default/outputs/default/*.hap
-          retention-days: 7
+          name: probe
+          path: probe.log
