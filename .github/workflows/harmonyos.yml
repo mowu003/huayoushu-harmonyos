@@ -31,25 +31,34 @@ jobs:
         if: steps.clt-cache.outputs.cache-hit != 'true'
         run: |
           set -e
-          sudo mkdir -p /opt/clt
+          sudo mkdir -p /opt/clt && sudo chown "$USER" /opt/clt
           curl -fL --retry 3 -o clt.zip.part00 "$CLT_URL/clt.zip.part00"
           curl -fL --retry 3 -o clt.zip.part01 "$CLT_URL/clt.zip.part01"
           cat clt.zip.part00 clt.zip.part01 > clt.zip
-          sha256sum clt.zip
-          sudo unzip -q clt.zip -d /opt/clt
-          ls /opt/clt
+          unzip -q clt.zip -d /opt/clt
+          find /opt/clt -maxdepth 3 -type d | head -20
 
       - name: Build HAP
         run: |
-          set -x
-          CLT=$(dirname "$(find /opt/clt -maxdepth 3 -type d -name command-line-tools | head -1)")
-          export COMMANDLINE_TOOL_DIR="$CLT"
-          export PATH="$CLT/command-line-tools/bin:$CLT/command-line-tools/tool/node/bin:$PATH"
-          hvigorw -v || true
-          ohpm install --all 2>&1 | tail -20
-          hvigorw clean --no-daemon
-          hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
-          ls -la entry/build/default/outputs/default/
+          set -o pipefail
+          {
+            HV=$(find /opt/clt -maxdepth 8 -type f -name hvigorw | head -1); echo "HV=$HV"
+            NODE=$(find /opt/clt -maxdepth 10 -type f -name node -perm -u+x | head -1); echo "NODE=$NODE"
+            export PATH="$(dirname "$HV"):$(dirname "$NODE"):$PATH"
+            hvigorw -v
+            ohpm install --all
+            hvigorw clean --no-daemon
+            hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+            ls -la entry/build/default/outputs/default/
+          } 2>&1 | tee build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
 
       - name: Upload HAP
         if: always()
