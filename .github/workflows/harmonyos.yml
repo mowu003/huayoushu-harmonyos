@@ -13,11 +13,10 @@ jobs:
       - name: Probe
         run: |
           {
-          echo '### PATH'; echo $PATH
-          echo '### sdk-pkg'; cat /opt/harmonyos-tools/command-line-tools/sdk/*/sdk-pkg.json 2>/dev/null || find / -maxdepth 6 -name sdk-pkg.json 2>/dev/null
-          echo '### ls opt'; ls -la /opt; ls -la /opt/harmonyos-tools/command-line-tools/sdk/ 2>/dev/null
-          echo '### ets pkg'; cat /opt/harmonyos-tools/command-line-tools/sdk/*/*/ets/oh-uni-package.json 2>/dev/null
-          echo '### hvigorw version'; hvigorw --version 2>&1 | tail -5
+          echo '### bin'; ls -la /opt/harmonyos-tools/command-line-tools/bin/
+          echo '### sdkmgr'; find / -xdev -name 'sdkmgr*' -o -xdev -name 'sdkmanager*' 2>/dev/null | head
+          echo '### sdkmgr version'; /opt/harmonyos-tools/command-line-tools/bin/sdkmgr --version 2>&1 | head -10
+          echo '### sdkmgr list'; timeout 90 /opt/harmonyos-tools/command-line-tools/bin/sdkmgr list 2>&1 | head -60
           } > probe.log 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
