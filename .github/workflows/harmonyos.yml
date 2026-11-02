@@ -15,12 +15,37 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies (ohpm)
-        run: ohpm install --all
+        run: ohpm install --all 2>&1 | tee ohpm.log || true
+
+      - name: Diag
+        run: |
+          { node -v; java -version 2>&1; command -v hvigorw ohpm node java;
+            echo "--- hvigorw version ---"; hvigorw --version 2>&1 | head -20;
+            echo "--- SDK env ---"; env | grep -i -E "ohos|harmony|deveco|sdk";
+            echo "--- SDK dirs ---"; ls -d $HOME/.ohos/* /opt/*harmony* /usr/local/*harmony* 2>/dev/null;
+          } > diag.log 2>&1; cat diag.log
 
       - name: Build HAP (debug)
         run: |
-          hvigorw clean --no-daemon
-          hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          { hvigorw clean --no-daemon
+            hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
+          } > build.log 2>&1 || true
+          echo "===== build.log (tail 200) ====="; tail -200 build.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build.log
+            diag.log
+            ohpm.log
+          retention-days: 3
+
+      - name: Fail if no HAP
+        run: |
+          ls -la entry/build/default/outputs/default/ || { echo "NO HAP PRODUCED"; tail -60 build.log; exit 1; }
 
       - name: Upload HAP artifact
         uses: actions/upload-artifact@v4
