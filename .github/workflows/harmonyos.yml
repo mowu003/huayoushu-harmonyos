@@ -12,17 +12,18 @@ jobs:
       - name: Probe
         run: |
           set +e
-          exec > probe.log 2>&1
-          echo '### PATH'; echo $PATH
-          echo '### /opt'; ls -la /opt
-          echo '### /usr/local'; ls -la /usr/local
-          echo '### find node'; find / -maxdepth 6 -name 'node' -type f 2>/dev/null | head
-          echo '### find hvigorw'; find / -maxdepth 8 -name 'hvigorw*' 2>/dev/null | head
-          echo '### find ohpm'; find / -maxdepth 8 -name 'ohpm*' -type f 2>/dev/null | head
-          echo '### java'; java -version 2>&1
-          echo '### SDK'; ls /opt 2>/dev/null; find / -maxdepth 4 -iname '*sdk*' -type d 2>/dev/null | head -20
-          echo '### root dirs'; ls -la /
-          cat probe.log
+          {
+          echo '### tools dir'; ls -la /opt/harmonyos-tools/command-line-tools/
+          echo '### bin'; ls -la /opt/harmonyos-tools/command-line-tools/bin/
+          echo '### sdk'; ls -la /opt/harmonyos-tools/command-line-tools/sdk/
+          echo '### sdk versions'; ls -la /opt/harmonyos-tools/command-line-tools/sdk/default/ 2>/dev/null
+          echo '### node-ish'; command -v node nodejs npm; ls -la /usr/bin/node* /usr/local/bin/node* 2>/dev/null
+          echo '### find node any'; find / -xdev -name 'node*' -type f 2>/dev/null | grep -v proc | head -20
+          echo '### hvigorw head'; head -20 /opt/harmonyos-tools/command-line-tools/bin/hvigorw
+          echo '### hvigorw run'; hvigorw --version 2>&1 | head -30
+          echo '### sdk api levels'; ls /opt/harmonyos-tools/command-line-tools/sdk/default/openharmony/ 2>/dev/null; cat /opt/harmonyos-tools/command-line-tools/sdk/default/openharmony/ets/oh-uni-package.json 2>/dev/null
+          } > /tmp/probe.log 2>&1
+          cp /tmp/probe.log $GITHUB_WORKSPACE/probe.log 2>/dev/null || cp /tmp/probe.log ./probe.log
       - name: Upload
         if: always()
         uses: actions/upload-artifact@v4
