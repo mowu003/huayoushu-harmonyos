@@ -1,0 +1,29 @@
+name: Export hdc
+on:
+  push:
+    paths: ['.github/workflows/export-hdc.yml']
+  workflow_dispatch:
+env:
+  CLT_URL: https://github.com/jerry-271828/harmonyos-commandline-tools/releases/download/v26.0.0.461
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - id: c
+        uses: actions/cache@v4
+        with: { path: /opt/clt, key: clt-26.0.0.461 }
+      - if: steps.c.outputs.cache-hit != 'true'
+        run: |
+          sudo mkdir -p /opt/clt && sudo chown $USER /opt/clt
+          curl -fL -o a $CLT_URL/clt.zip.part00; curl -fL -o b $CLT_URL/clt.zip.part01
+          cat a b > c.zip && unzip -q c.zip -d /opt/clt
+      - name: Package hdc
+        run: |
+          TC=$(find /opt/clt -maxdepth 8 -type d -path '*sdk/default/openharmony/toolchains' | head -1)
+          echo TC=$TC; ls $TC
+          mkdir -p out && cp -a $TC/hdc $TC/lib* $TC/*.so* out/ 2>/dev/null || true
+          tar czf hdc-linux-x64.tar.gz -C out . && ls -la hdc-linux-x64.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hdc-linux-x64
+          path: hdc-linux-x64.tar.gz
