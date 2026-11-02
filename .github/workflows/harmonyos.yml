@@ -1,45 +1,26 @@
-name: Build HarmonyOS HAP
-
+name: Probe
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
-
 jobs:
-  build:
+  probe:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v5.0.4
+      image: ghcr.io/sanchuanhehe/harmony-next-pipeline-docker/harmonyos-ci-image:v6.0.0.418SP-rc1
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies (ohpm)
-        run: ohpm install --all 2>&1 | tee ohpm.log || true
-
-      - name: Build HAP (debug)
+      - name: Probe
         run: |
-          { hvigorw clean --no-daemon
-            hvigorw assembleHap --mode module -p product=default -p buildMode=debug --no-daemon
-          } > build.log 2>&1 || true
-          echo "===== build.log (tail 150) ====="; tail -150 build.log
-
-      - name: Upload logs
+          {
+          echo '### PATH'; echo $PATH
+          echo '### sdk-pkg'; cat /opt/harmonyos-tools/command-line-tools/sdk/*/sdk-pkg.json 2>/dev/null || find / -maxdepth 6 -name sdk-pkg.json 2>/dev/null
+          echo '### ls opt'; ls -la /opt; ls -la /opt/harmonyos-tools/command-line-tools/sdk/ 2>/dev/null
+          echo '### ets pkg'; cat /opt/harmonyos-tools/command-line-tools/sdk/*/*/ets/oh-uni-package.json 2>/dev/null
+          echo '### hvigorw version'; hvigorw --version 2>&1 | tail -5
+          } > probe.log 2>&1
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: |
-            build.log
-            ohpm.log
-          retention-days: 3
-
-      - name: Fail if no HAP
-        run: |
-          ls -la entry/build/default/outputs/default/ || { echo "NO HAP PRODUCED"; tail -80 build.log; exit 1; }
-
-      - name: Upload HAP artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: hap-debug
-          path: entry/build/default/outputs/default/*.hap
-          retention-days: 7
+          name: probe
+          path: probe.log
